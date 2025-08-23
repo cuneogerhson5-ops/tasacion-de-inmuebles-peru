@@ -595,14 +595,12 @@ const DATA = {
     }
   }
 };
-// ===============================
-// Configuración de Factores (Actualizada)
-// ===============================
+// Configuración de Factores
 const FACTORES_TASACION = {
   antiguedad: {
-    depreciacionAnual: 0.01,   // 1% anual
-    depreciacionMaxima: 0.30,  // Máx. 30%
-    premiumNuevo: 0.05         // +5% si tiene ≤ 2 años
+    depreciacionAnual: 0.01,
+    depreciacionMaxima: 0.30,
+    premiumNuevo: 0.05
   },
   dormitorios: {
     base: 2,
@@ -644,26 +642,13 @@ const FACTORES_TASACION = {
   }
 };
 
-// ===============================
-// Función: Obtener tipo de cambio
-// ===============================
+// Función para obtener tipo de cambio
 async function obtenerTipoCambio() {
-  try {
-    const res = await fetch("https://open.er-api.com/v6/latest/PEN");
-    const data = await res.json();
-    if (data && data.rates && data.rates.USD) {
-      return 1 / data.rates.USD;
-    }
-    throw new Error("No se pudo obtener tipo de cambio");
-  } catch (err) {
-    console.error("Error al obtener tipo de cambio:", err);
-    return 3.75;
-  }
+  // Tipo de cambio fijo debido a restricciones de CORS en GitHub Pages
+  return 3.75;
 }
 
-// ===============================
-// Función: Calcular rango dinámico
-// ===============================
+// Función para calcular rango dinámico
 function calcularRangoDinamico(datos) {
   let rango = 0.10;
   rango += Math.min((datos.antig / 5) * 0.005, 0.05);
@@ -681,17 +666,11 @@ function calcularRangoDinamico(datos) {
     rango += 0.05;
   } else if (datos.tipo.toLowerCase().includes("departamento")) {
     rango -= 0.02;
-  } else if (datos.tipo.toLowerCase().includes("oficina")) {
-    rango += 0.02;
-  } else if (datos.tipo.toLowerCase().includes("local")) {
-    rango += 0.03;
   }
   return Math.min(Math.max(rango, 0.08), 0.20);
 }
 
-// ===============================
 // Funciones de factores
-// ===============================
 function aplicarFactorAntiguedad(valor, antiguedad) {
   if (antiguedad <= 1) {
     return valor * (1 + FACTORES_TASACION.antiguedad.premiumNuevo);
@@ -705,7 +684,7 @@ function aplicarFactorAntiguedad(valor, antiguedad) {
 
 function aplicarFactorDormitorios(valor, dormitorios, tipoInmueble) {
   if (tipoInmueble === "terreno") {
-    return valor; // No aplica para terrenos
+    return valor;
   }
   const { base, incrementoPorDormitorio, decrementoPorDefecto, maximoIncremento } = FACTORES_TASACION.dormitorios;
   if (dormitorios === base) return valor;
@@ -720,7 +699,7 @@ function aplicarFactorDormitorios(valor, dormitorios, tipoInmueble) {
 
 function aplicarFactorBanos(valor, banos, tipoInmueble) {
   if (tipoInmueble === "terreno") {
-    return valor; // No aplica para terrenos
+    return valor;
   }
   const { base, incrementoPorBano, decrementoPorDefecto, maximoIncremento } = FACTORES_TASACION.banos;
   if (banos === base) return valor;
@@ -735,7 +714,7 @@ function aplicarFactorBanos(valor, banos, tipoInmueble) {
 
 function aplicarFactorPiso(valor, piso, tieneAscensor, tipoInmueble) {
   if (tipoInmueble === "casa" || tipoInmueble === "terreno") {
-    return valor; // No aplica para casas ni terrenos
+    return valor;
   }
 
   let factorPiso = 1.0;
@@ -775,9 +754,7 @@ function aplicarFactorEstadoConservacion(valor, estado) {
   return valor * factor;
 }
 
-// ===============================
 // Ejecución principal
-// ===============================
 document.addEventListener("DOMContentLoaded", () => {
   const distritoSel = document.getElementById("distrito");
   const zonaSel = document.getElementById("zona");
@@ -881,7 +858,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const datos = {
         distrito: distritoSel.value,
         zona: zonaSel.value,
-        tipo: document.getElementById("tipo").value.toLowerCase(),
+        tipo: tipoSel.value.toLowerCase(),
         areaConstruida: parseFloat(document.getElementById("areaConstruida").value) || 0,
         areaLibre: parseFloat(document.getElementById("areaLibre").value) || 0,
         areaTerreno: parseFloat(document.getElementById("areaTerreno").value) || 0,
@@ -915,14 +892,11 @@ document.addEventListener("DOMContentLoaded", () => {
         factorAreaLibre = FACTORES_TASACION.areaLibre.departamento;
       }
 
-      // Para terrenos, el área ponderada es solo el área de terreno
-      // Para casas, el área ponderada es área construida + (área libre * factor) + (área de terreno * factor)
-      // Para departamentos, el área ponderada es área construida + (área libre * factor)
       let areaPonderada;
       if (datos.tipo.includes("terreno")) {
         areaPonderada = datos.areaTerreno * factorAreaLibre;
       } else if (datos.tipo.includes("casa")) {
-        areaPonderada = datos.areaConstruida + (datos.areaLibre * factorAreaLibre) + (datos.areaTerreno * 0.20); // Factor 0.20 para área de terreno en casas
+        areaPonderada = datos.areaConstruida + (datos.areaLibre * factorAreaLibre) + (datos.areaTerreno * 0.20);
       } else {
         areaPonderada = datos.areaConstruida + (datos.areaLibre * factorAreaLibre);
       }
@@ -931,13 +905,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
       valorBase = aplicarFactorAntiguedad(valorBase, datos.antig);
 
-      // Aplicar factor de dormitorios y baños solo si no es terreno
       if (datos.tipo !== "terreno") {
         valorBase = aplicarFactorDormitorios(valorBase, datos.dorms, datos.tipo);
         valorBase = aplicarFactorBanos(valorBase, datos.baths, datos.tipo);
       }
 
-      // Aplicar factor de pisos y ascensor solo si es departamento
       if (datos.tipo.includes("departamento")) {
         valorBase = aplicarFactorPiso(valorBase, datos.piso, datos.ascensor === "con", datos.tipo);
       }
@@ -983,4 +955,5 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 });
+
 
